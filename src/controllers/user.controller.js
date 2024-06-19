@@ -3,6 +3,7 @@ import { OTPVerification } from "../models/OTPVerification.js"
 import crypto from "crypto"
 import nodemailer from "nodemailer"
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken"
 
 const getRefereshAndAccessToken = async (userId) => {
     try {
@@ -106,6 +107,37 @@ const verifyOtpAndChangePassword = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+const refreshAccessToken = async (req,res) => {
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
+
+    if (!incomingRefreshToken) {
+        throw new Error('token not found', { statusCode: 404 })
+    }
+
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+    const user = await User.findById(decodedToken?._id)
+
+    if (!user) {
+        throw new Error('User not found', { statusCode: 404 })
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+        throw new Error('refresh token does not match', { statusCode: 404 })
+    }
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    const { accessToken, refreshToken } = getRefereshAndAccessToken(user._id)
+
+    return res.status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(user)
+}
 
 const registerUser = async (req, res) => {
     const { username, email, fullname, password } = req.body
@@ -255,4 +287,4 @@ const updateAccountDetails = async (req, res) => {
         .json(user)
 }
 
-export { registerUser, loginUser, logoutUser, getCurrentUser, changeCurrentPassword, updateAccountDetails, sendOtp, verifyOtpAndChangePassword }     
+export { registerUser, loginUser, logoutUser, getCurrentUser, changeCurrentPassword, updateAccountDetails, sendOtp, verifyOtpAndChangePassword, refreshAccessToken }     
