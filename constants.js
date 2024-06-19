@@ -1,1 +1,1 @@
-export const DB_NAME = "UserAuthentication"
+export const DB_NAME = "UserAuthentication" 
