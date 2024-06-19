@@ -1,5 +1,22 @@
 import { User } from "../models/user.model.js"
 
+const getRefereshAndAccessToken = async (userId) => {
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return { accessToken, refreshToken }
+
+
+    } catch (error) {
+        throw new Error('Token generation went wrong', { statusCode: 404 })
+    }
+}
+
 const registerUser = async (req, res) => {
     const { username, email, fullname, password } = req.body
     console.log(username, email, fullname, password)
@@ -44,4 +61,60 @@ const registerUser = async (req, res) => {
 
 }
 
-export { registerUser }     
+const loginUser = async (req, res) => {
+    const { username, email, password } = req.body
+    if (!username && !email) {
+        throw new Error('At least one field is required', { statusCode: 404 })
+    }
+    const user = await User.findOne({
+        $or: [{ username }, { email }]
+    })
+    if (!user) {
+        throw new Error('User does not exist', { statusCode: 404 })
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if (!isPasswordValid) {
+        throw new Error('Incorrect password', { statusCode: 404 })
+    }
+
+    const { accessToken, refreshToken } = await getRefereshAndAccessToken(user._id)
+
+    const loggedInUser = await User.findById(user._id)
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(loggedInUser)
+}
+
+const logoutUser = async (req, res) => {
+    const luser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1 // this removes the field from document
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(luser)
+}
+
+export { registerUser, loginUser, logoutUser }     
