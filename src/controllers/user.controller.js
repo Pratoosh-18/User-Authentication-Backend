@@ -58,17 +58,17 @@ const sendOtp = async (req, res) => {
             text: `Your OTP code is ${otp}. It will expire in 10 minutes.`
         };
 
-        // If we dont want to send otp to mail then uncomment the next line
-        res.status(200).json({ message: 'OTP sent' });
+        // If we dont want to send otp to mail then uncomment the next to directly send the response 
+        // res.status(200).json({ message: 'OTP sent' });
 
         // Send OTP via email
-        // transporter.sendMail(mailOptions, (error, info) => {
-        //     if (error) {
-        //         console.error('Error sending email', error);
-        //         return res.status(500).json({ message: 'Error sending email', error });
-        //     }
-        //     res.status(200).json({ message: 'OTP sent', info });
-        // });
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email', error);
+                return res.status(500).json({ message: 'Error sending email', error });
+            }
+            res.status(200).json({ message: 'OTP sent', info });
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -140,8 +140,8 @@ const refreshAccessToken = async (req,res) => {
 }
 
 const registerUser = async (req, res) => {
-    const { username, email, fullname, password } = req.body
-    console.log(username, email, fullname, password)
+    const { username, email, fullname, password, otp } = req.body
+    // console.log(username, email, fullname, password)
 
     // Validations
     if (username === undefined) {
@@ -155,6 +155,25 @@ const registerUser = async (req, res) => {
     }
     if (password === undefined) {
         throw new Error('Password is not defined', { statusCode: 404 })
+    }
+
+
+    try {
+        const verificationRecord = await OTPVerification.findOne({ email, otp });
+            if (!verificationRecord) {
+                return res.status(400).json({ message: 'Invalid OTP' });
+            }
+    
+            // Check if the OTP has expired
+            if (verificationRecord.expiresAt < Date.now()) {
+                return res.status(400).json({ message: 'OTP expired' });
+            }
+    
+            if (verificationRecord.verified) {
+                return res.status(400).json({ message: 'OTP already used' });
+            }
+    } catch (error) {
+        throw new Error('OTP verification error', { statusCode: 404 })
     }
 
     const existedUser = await User.findOne({
