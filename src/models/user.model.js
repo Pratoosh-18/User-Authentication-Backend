@@ -15,7 +15,12 @@ const userSchema = new mongoose.Schema({
         required:true,
         unique:true,
         lowercase:true,
-        trim:true
+        trim:true,
+        validate(value) {
+            if (!validator.isEmail(value)) {
+              throw new Error('Invalid email');
+            }
+          },
     },
     fullname:{
         type:String,
@@ -23,7 +28,12 @@ const userSchema = new mongoose.Schema({
     },
     password:{
         type:String,
-        required:[true,"Password is required"]
+        required:[true,"Password is required"],
+        validate(value) {
+            if (!value.match(/\d/) || !value.match(/[a-zA-Z]/)) {
+              throw new Error('Password must contain at least one letter and one number');
+            }
+          },
     },
     refreshToken:{
         type:String,

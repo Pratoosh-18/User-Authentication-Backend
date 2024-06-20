@@ -114,11 +114,9 @@ const refreshAccessToken = async (req,res) => {
     if (!incomingRefreshToken) {
         throw new Error('token not found', { statusCode: 404 })
     }
-
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
 
     const user = await User.findById(decodedToken?._id)
-
     if (!user) {
         throw new Error('User not found', { statusCode: 404 })
     }

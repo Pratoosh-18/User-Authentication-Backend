@@ -13,7 +13,7 @@ router.route("/login").post(
 router.route("/logout").post(
     verifyJWT, logoutUser
 )
-router.route("/currentUser").get(
+router.route("/currentUser").get(   
     verifyJWT, getCurrentUser
 )
 router.route("/changePassword").post(
